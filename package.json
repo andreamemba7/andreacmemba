@@ -1,0 +1,10 @@
+{
+  "name": "andrea-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static portfolio site. No build step - the HTML/CSS/JS in this directory is what gets served.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "dev": "npx serve ."
+  }
+}

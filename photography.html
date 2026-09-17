@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Photography - Andrea</title>
+  <link rel="icon" href="public/faicon-site.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="fixed-chrome page-photography">
+  <header class="site-header">
+    <a href="index.html" class="site-name">Andrea</a>
+    <nav class="header-links">
+      <a href="index.html" class="photography-link">Videography</a>
+      <a href="info.html" class="info-link">Info</a>
+    </nav>
+  </header>
+
+  <main class="photo-grid" id="photoGrid"></main>
+
+  <div class="photo-flip-viewer" id="photoFlipViewer">
+    <img class="photo-flip-image" id="flipImage" alt="">
+    <div class="photo-caption" id="flipCaption">
+      <span class="photo-caption-text">
+        <span class="photo-heading" id="flipHeading"></span>
+        <span class="photo-subheading" id="flipSubheading"></span>
+      </span>
+      <button type="button" class="photo-close" id="flipClose">Close</button>
+    </div>
+    <span class="photo-counter" id="flipCounter"></span>
+  </div>
+
+  <footer class="site-footer">
+    <span class="footer-left"></span>
+    <a href="photo-viewer.html" class="index-link">Index</a>
+  </footer>
+
+  <script src="js/sanity-config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/sanity-client.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
