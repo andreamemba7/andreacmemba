@@ -265,7 +265,7 @@ body.has-slides {
    bottom) would sit on top of the video's own lower edge. */
 .project-block {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: var(--hero-ratio, 16 / 9);
   max-height: calc(100vh - var(--bar-height) * 2 - 74px);
   line-height: 0;
   position: relative;
@@ -279,7 +279,10 @@ body.has-slides {
   height: 100%;
   display: block;
   border: 0;
-  object-fit: cover;
+  /* contain, never cover: the whole frame is shown as shot. Any leftover
+     space in the box is the block's own black, so a portrait video reads
+     as letterboxed rather than cropped. */
+  object-fit: contain;
 }
 
 .project-video-block video {
@@ -461,9 +464,20 @@ body.has-slides {
   .project-hero {
     padding: 14px;
     margin-bottom: 0;
+    /* Centres the block once it's narrower than the page, which is what
+       a portrait video now does. */
+    display: flex;
+    justify-content: center;
   }
 
+  /* Height-driven: the hero fills the available height, and its width
+     follows from the media's own ratio. A 16:9 film stays full-bleed
+     (capped by max-width); a 9:16 vertical becomes a tall narrow block
+     in the middle of the page instead of a small sliver marooned in a
+     wide black stage. */
   .project-block {
+    width: auto;
+    max-width: 100%;
     height: calc(100vh - var(--bar-height) * 2 - 102px);
     min-height: 500px;
     max-height: none;
