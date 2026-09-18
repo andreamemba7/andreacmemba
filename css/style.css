@@ -304,17 +304,30 @@ body.has-slides {
 
 /* Desktop: every thumbnail (up to 7) shares the row evenly, so however
    many there are, they always fill the full width with no scrolling. */
+/* A fixed-height strip. Each tile's width follows its own media ratio
+   (fed in as --thumb-ratio by main.js), so a vertical clip reads as a
+   tall narrow tile rather than a hard-cropped centre strip of itself.
+   Uniform height keeps the row tidy; varied width is the honest part. */
 .project-thumbs {
   display: flex;
   gap: 8px;
   padding: 0 var(--header-footer-pad);
   margin-bottom: 32px;
+  height: 104px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.project-thumbs::-webkit-scrollbar {
+  display: none;
 }
 
 .project-thumb {
-  flex: 1 1 0;
-  min-width: 0;
-  aspect-ratio: 16 / 9;
+  flex: 0 0 auto;
+  height: 100%;
+  width: auto;
+  aspect-ratio: var(--thumb-ratio, 16 / 9);
   padding: 0;
   border: 0;
   background: #f2f2f2;
@@ -486,10 +499,12 @@ body.has-slides {
 
 /* Desktop "cinema mode" - once a hero video is playing, the description
    and credits below it hide so there's nothing to scroll past to keep
-   watching (the video itself no longer changes size for this). */
+   watching (the video itself no longer changes size for this). The
+   thumbnail row deliberately stays: hiding it strands the viewer on
+   whichever video they clicked, with no way back to the rest of the
+   project short of reloading the page. */
 @media (min-width: 641px) {
-  body.hero-playing .project-info,
-  body.hero-playing .project-thumbs {
+  body.hero-playing .project-info {
     display: none;
   }
 }
@@ -887,21 +902,10 @@ body.page-info .site-name {
     max-width: 45vw;
   }
 
-  /* Mobile: 3 thumbnails fully visible, a sliver of the 4th showing to
-     hint there's more, scrolled horizontally to reach the rest. */
+  /* Mobile: a shorter strip, still scrolled horizontally to reach the
+     rest. Widths come from each tile's own ratio, as on desktop. */
   .project-thumbs {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .project-thumbs::-webkit-scrollbar {
-    display: none;
-  }
-
-  .project-thumb {
-    flex: 0 0 auto;
-    width: calc((100% - 16px) / 3.3);
+    height: 72px;
   }
 
   .project-outtake {
