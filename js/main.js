@@ -222,34 +222,43 @@ function buildThumbnailElement(media, altText) {
 
   const media = project.media || [];
 
+  const thumbsWrap = document.getElementById("projectThumbs");
+
+  // The row shows every media item except whichever one is currently the
+  // hero, and is rebuilt on each swap. Building it once would strand the
+  // cover: click a thumbnail and the item you came from would vanish from
+  // the row with no way back to it.
+  function renderThumbs(currentItem) {
+    if (!thumbsWrap) return;
+    thumbsWrap.innerHTML = "";
+    media
+      .filter((item) => item !== currentItem)
+      .slice(0, 7)
+      .forEach((item) => {
+        const button = document.createElement("button");
+        button.className = "project-thumb";
+        button.setAttribute("aria-label", "Show this media");
+        const thumbEl = buildThumbnailElement(item, project.name);
+        button.appendChild(thumbEl);
+        trackIntrinsicRatio(button, thumbEl, "--thumb-ratio");
+        if (item.type === "video" || item.type === "embed") {
+          const icon = document.createElement("span");
+          icon.className = "project-thumb-play";
+          icon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M8 5v14l11-7z" fill="white"/></svg>';
+          button.appendChild(icon);
+        }
+        button.addEventListener("click", () => renderHero(item));
+        thumbsWrap.appendChild(button);
+      });
+  }
+
   function renderHero(item) {
     heroWrap.innerHTML = "";
     heroWrap.appendChild(buildHeroMediaElement(item, project.name));
+    renderThumbs(item);
   }
 
-  const heroItem = project.cover || media[0];
-  renderHero(heroItem);
-
-  // Every media item except whichever one is currently the hero, so the
-  // cover never appears twice on this page.
-  const thumbsWrap = document.getElementById("projectThumbs");
-  const otherMedia = media.filter((item) => item !== heroItem);
-  if (thumbsWrap && otherMedia.length) {
-    otherMedia.slice(0, 7).forEach((item) => {
-      const button = document.createElement("button");
-      button.className = "project-thumb";
-      button.setAttribute("aria-label", "Show this media");
-      button.appendChild(buildThumbnailElement(item, project.name));
-      if (item.type === "video" || item.type === "embed") {
-        const icon = document.createElement("span");
-        icon.className = "project-thumb-play";
-        icon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M8 5v14l11-7z" fill="white"/></svg>';
-        button.appendChild(icon);
-      }
-      button.addEventListener("click", () => renderHero(item));
-      thumbsWrap.appendChild(button);
-    });
-  }
+  renderHero(project.cover || media[0]);
 
   const descriptionEl = document.getElementById("projectDescription");
   if (descriptionEl) {
@@ -355,14 +364,14 @@ function buildThumbnailElement(media, altText) {
 // Hero media for the project page. Images/embeds render plainly; an
 // uploaded video file starts paused behind a big click-to-play button,
 // then hands off to native controls once playing.
-// The hero box is sized by CSS from --hero-ratio, which defaults to 16/9
-// so the layout never collapses while media is still loading. As soon as
-// the real dimensions are known, this writes them onto the block and the
-// box reshapes to match - that's what stops portrait footage sitting in a
-// landscape frame.
-function applyHeroRatio(block, el) {
+// Writes a media element's real dimensions onto its container as a CSS
+// custom property, so the box can reshape to match what's actually inside
+// it. Both --hero-ratio and --thumb-ratio default to 16/9 in the
+// stylesheet, so layout is stable before metadata arrives and only
+// corrects itself once the true size is known.
+function trackIntrinsicRatio(container, el, varName) {
   function set(w, h) {
-    if (w > 0 && h > 0) block.style.setProperty("--hero-ratio", w + " / " + h);
+    if (w > 0 && h > 0) container.style.setProperty(varName, w + " / " + h);
   }
   if (el.tagName === "VIDEO") {
     if (el.videoWidth) set(el.videoWidth, el.videoHeight);
@@ -373,6 +382,10 @@ function applyHeroRatio(block, el) {
   }
   // iframes (YouTube/Vimeo) expose no intrinsic size cross-origin, so
   // those keep the 16/9 default.
+}
+
+function applyHeroRatio(block, el) {
+  trackIntrinsicRatio(block, el, "--hero-ratio");
 }
 
 function buildHeroMediaElement(media, altText) {
