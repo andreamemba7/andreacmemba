@@ -355,13 +355,35 @@ function buildThumbnailElement(media, altText) {
 // Hero media for the project page. Images/embeds render plainly; an
 // uploaded video file starts paused behind a big click-to-play button,
 // then hands off to native controls once playing.
+// The hero box is sized by CSS from --hero-ratio, which defaults to 16/9
+// so the layout never collapses while media is still loading. As soon as
+// the real dimensions are known, this writes them onto the block and the
+// box reshapes to match - that's what stops portrait footage sitting in a
+// landscape frame.
+function applyHeroRatio(block, el) {
+  function set(w, h) {
+    if (w > 0 && h > 0) block.style.setProperty("--hero-ratio", w + " / " + h);
+  }
+  if (el.tagName === "VIDEO") {
+    if (el.videoWidth) set(el.videoWidth, el.videoHeight);
+    el.addEventListener("loadedmetadata", () => set(el.videoWidth, el.videoHeight));
+  } else if (el.tagName === "IMG") {
+    if (el.naturalWidth) set(el.naturalWidth, el.naturalHeight);
+    el.addEventListener("load", () => set(el.naturalWidth, el.naturalHeight));
+  }
+  // iframes (YouTube/Vimeo) expose no intrinsic size cross-origin, so
+  // those keep the 16/9 default.
+}
+
 function buildHeroMediaElement(media, altText) {
   if (!media) return document.createElement("div");
 
   if (media.type !== "video") {
     const block = document.createElement("div");
     block.className = "project-block";
-    block.appendChild(buildMediaElement(media, altText));
+    const el = buildMediaElement(media, altText);
+    block.appendChild(el);
+    applyHeroRatio(block, el);
     return block;
   }
 
@@ -372,7 +394,9 @@ function buildHeroMediaElement(media, altText) {
   video.src = media.src;
   if (media.poster) video.poster = media.poster;
   video.playsInline = true;
+  video.preload = "metadata";
   video.setAttribute("aria-label", altText);
+  applyHeroRatio(block, video);
 
   const playButton = document.createElement("button");
   playButton.className = "project-play";
