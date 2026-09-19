@@ -224,32 +224,30 @@ function buildThumbnailElement(media, altText) {
 
   const thumbsWrap = document.getElementById("projectThumbs");
 
-  // The row shows every media item except whichever one is currently the
-  // hero, and is rebuilt on each swap. Building it once would strand the
-  // cover: click a thumbnail and the item you came from would vanish from
-  // the row with no way back to it.
+  // The row shows EVERY media item, always in the same order, with the
+  // current one marked. Filtering out the active item made the row reflow
+  // on every click and stranded whichever video you started on.
   function renderThumbs(currentItem) {
     if (!thumbsWrap) return;
     thumbsWrap.innerHTML = "";
-    media
-      .filter((item) => item !== currentItem)
-      .slice(0, 7)
-      .forEach((item) => {
-        const button = document.createElement("button");
-        button.className = "project-thumb";
-        button.setAttribute("aria-label", "Show this media");
-        const thumbEl = buildThumbnailElement(item, project.name);
-        button.appendChild(thumbEl);
-        trackIntrinsicRatio(button, thumbEl, "--thumb-ratio");
-        if (item.type === "video" || item.type === "embed") {
-          const icon = document.createElement("span");
-          icon.className = "project-thumb-play";
-          icon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M8 5v14l11-7z" fill="white"/></svg>';
-          button.appendChild(icon);
-        }
-        button.addEventListener("click", () => renderHero(item));
-        thumbsWrap.appendChild(button);
-      });
+    media.slice(0, 8).forEach((item) => {
+      const button = document.createElement("button");
+      button.className = "project-thumb";
+      if (item === currentItem) button.classList.add("is-active");
+      button.setAttribute("aria-label", "Show this media");
+      button.setAttribute("aria-current", item === currentItem ? "true" : "false");
+      const thumbEl = buildThumbnailElement(item, project.name);
+      button.appendChild(thumbEl);
+      trackIntrinsicRatio(button, thumbEl, "--thumb-ratio");
+      if (item.type === "video" || item.type === "embed") {
+        const icon = document.createElement("span");
+        icon.className = "project-thumb-play";
+        icon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M8 5v14l11-7z" fill="white"/></svg>';
+        button.appendChild(icon);
+      }
+      button.addEventListener("click", () => renderHero(item));
+      thumbsWrap.appendChild(button);
+    });
   }
 
   function renderHero(item) {
@@ -433,9 +431,6 @@ function buildHeroMediaElement(media, altText) {
 
   video.addEventListener("play", () => {
     playButton.style.display = "none";
-    // Once played, the video keeps the larger cinema-mode layout even if
-    // it's later paused - pausing no longer reverts it back.
-    document.body.classList.add("hero-playing");
   });
 
   video.addEventListener("pause", () => {
@@ -454,7 +449,68 @@ function buildHeroMediaElement(media, altText) {
   const bg = document.getElementById("infoBg");
   if (!bg || typeof window.loadPhotos !== "function") return;
 
-  const photos = await window.loadPhotos();
+  // Two modes, one page. No ?album= param means the photography index:
+  // one cover per album, clicking navigates into it. With ?album=<slug>
+  // this is the album interior: that album's photos, laid out as a
+  // contact sheet, clicking opens the flip viewer.
+  const albumSlug = new URLSearchParams(window.location.search).get("album");
+  let photos;
+
+  if (albumSlug && typeof window.loadPhotoAlbums === "function") {
+    const albums = await window.loadPhotoAlbums();
+    const album = albums.find((a) => a.slug === albumSlug);
+    if (!album) {
+      window.location.replace("photography.html");
+      return;
+    }
+    photos = album.photos;
+    document.title = album.title + " - Andrea";
+    document.body.classList.add("page-album");
+
+    const masthead = document.getElementById("albumMasthead");
+    if (masthead) masthead.hidden = false;
+    const titleEl = document.getElementById("albumTitle");
+    if (titleEl) titleEl.textContent = album.title;
+    const subEl = document.getElementById("albumSubtitle");
+    if (subEl) subEl.textContent = album.subtitle;
+    const countEl = document.getElementById("albumCount");
+    if (countEl) {
+      countEl.textContent =
+        album.photos.length + (album.photos.length === 1 ? " frame" : " frames");
+    }
+
+    // A deliberate rhythm rather than a uniform grid: every 7th frame
+    // breaks the columns and runs full width, so scrolling the album has
+    // a pulse instead of a drone.
+    grid.classList.add("album-sheet");
+  } else if (typeof window.loadPhotoAlbums === "function") {
+    const albums = await window.loadPhotoAlbums();
+    grid.classList.add("album-index");
+    albums.forEach((album) => {
+      const a = document.createElement("a");
+      a.className = "album-card";
+      a.href = "photography.html?album=" + encodeURIComponent(album.slug);
+
+      const img = document.createElement("img");
+      img.src = album.cover.url;
+      img.alt = album.title;
+      img.loading = "lazy";
+      a.appendChild(img);
+
+      const meta = document.createElement("span");
+      meta.className = "album-card-meta";
+      meta.innerHTML =
+        '<span class="album-card-title"></span><span class="album-card-count"></span>';
+      meta.querySelector(".album-card-title").textContent = album.title;
+      meta.querySelector(".album-card-count").textContent = album.photos.length;
+      a.appendChild(meta);
+
+      grid.appendChild(a);
+    });
+    return; // index mode has no flip viewer - clicking navigates
+  } else {
+    photos = await window.loadPhotos();
+  }
   if (!photos.length) return;
 
   const slots = 10;
@@ -543,6 +599,8 @@ function buildHeroMediaElement(media, altText) {
   const cells = photos.map((photo, index) => {
     const a = document.createElement("a");
     a.href = "photo-viewer.html#" + index;
+    // Every 7th frame breaks the column rhythm and runs full width.
+    if (albumSlug && index > 0 && (index + 1) % 7 === 0) a.classList.add("is-wide");
 
     const img = document.createElement("img");
     img.src = photo.url;
