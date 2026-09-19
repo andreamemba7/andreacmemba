@@ -161,6 +161,33 @@ window.loadProjects = (function () {
   };
 })();
 
+// Albums are derived, not a separate document type: photos that share a
+// heading are one album, in their existing `order`. That means albums work
+// with the content already in Sanity - no schema change, no re-tagging.
+// The first photo of each group (lowest order) is the album cover.
+window.loadPhotoAlbums = async function loadPhotoAlbums() {
+  const photos = (await window.loadPhotos()) || [];
+  const byHeading = new Map();
+
+  photos.forEach((photo) => {
+    const title = (photo.heading || "Untitled").trim();
+    if (!byHeading.has(title)) byHeading.set(title, []);
+    byHeading.get(title).push(photo);
+  });
+
+  return Array.from(byHeading, ([title, items]) => ({
+    title,
+    slug: title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "untitled",
+    // The subheading of the first photo stands in as the album's own.
+    subtitle: (items[0] && items[0].subheading) || "",
+    cover: items[0],
+    photos: items
+  }));
+};
+
 // Photography page - a flat, ordered list of standalone photos (separate
 // from the video/case-study "project" documents above).
 window.loadPhotos = (function () {
