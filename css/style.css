@@ -344,6 +344,22 @@ body.has-slides {
   display: block;
 }
 
+/* Every media item stays in the row; the one currently in the hero is
+   marked rather than removed, so the row never reflows mid-browse. */
+.project-thumb.is-active {
+  outline: 2px solid #111;
+  outline-offset: -2px;
+}
+
+.project-thumb:not(.is-active) {
+  opacity: 0.55;
+  transition: opacity 0.18s ease;
+}
+
+.project-thumb:not(.is-active):hover {
+  opacity: 1;
+}
+
 .project-thumb-play {
   position: absolute;
   top: 50%;
@@ -497,17 +513,10 @@ body.has-slides {
   }
 }
 
-/* Desktop "cinema mode" - once a hero video is playing, the description
-   and credits below it hide so there's nothing to scroll past to keep
-   watching (the video itself no longer changes size for this). The
-   thumbnail row deliberately stays: hiding it strands the viewer on
-   whichever video they clicked, with no way back to the rest of the
-   project short of reloading the page. */
-@media (min-width: 641px) {
-  body.hero-playing .project-info {
-    display: none;
-  }
-}
+/* "Cinema mode" is gone. It used to hide the description and credits once
+   a hero video played, and because the hero-playing class is never
+   removed, that content stayed gone until a page reload. Nothing on this
+   page hides itself on play any more. */
 
 /* Photography page - edge-to-edge black gallery grid */
 
@@ -998,4 +1007,134 @@ body.page-info .site-name {
     display: block;
     margin-top: 12px;
   }
+}
+
+/* ---------------------------------------------------------------
+   Photography albums
+   Albums are groups of photos sharing a heading. The index shows one
+   cover per album; the interior shows that album's frames as a contact
+   sheet. Both live in photography.html, switched by ?album=<slug>.
+   --------------------------------------------------------------- */
+
+/* Index: covers in a column masonry so portrait and landscape covers
+   both keep their true shape - no cropping anywhere on this page. */
+.photo-grid.album-index {
+  display: block;
+  column-count: 3;
+  column-gap: 2px;
+  padding: 2px;
+}
+
+.album-card {
+  position: relative;
+  display: block;
+  break-inside: avoid;
+  margin-bottom: 2px;
+  overflow: hidden;
+}
+
+.album-card img {
+  width: 100%;
+  height: auto;
+  display: block;
+  transition: transform 0.5s cubic-bezier(0.65, 0, 0.35, 1),
+              filter 0.5s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Covers sit dimmed until hovered, so the album you're pointing at is the
+   only one fully lit. On touch, everything stays lit. */
+@media (hover: hover) {
+  .album-card img { filter: brightness(0.62); }
+  .album-card:hover img { filter: brightness(1); transform: scale(1.02); }
+}
+
+.album-card-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  color: #fff;
+  font-family: 'Untitled Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), transparent);
+  pointer-events: none;
+}
+
+.album-card-count { opacity: 0.7; font-variant-numeric: tabular-nums; }
+
+/* Interior: a masthead, then the contact sheet. */
+.album-masthead {
+  padding: 64px var(--header-footer-pad) 28px;
+  color: #fff;
+  font-family: 'Untitled Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.album-masthead h1 {
+  margin: 0;
+  font-weight: 400;
+  font-size: clamp(28px, 6vw, 64px);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+}
+
+.album-masthead p {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  opacity: 0.6;
+}
+
+.album-back {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: #fff;
+  opacity: 0.6;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.album-back:hover { opacity: 1; }
+
+/* The sheet itself. Column masonry keeps every frame's own ratio, and
+   .is-wide frames break out of the columns entirely every 7th image so
+   the scroll has a rhythm rather than an even drone. */
+.photo-grid.album-sheet {
+  display: block;
+  column-count: 3;
+  column-gap: 2px;
+  padding: 0 2px 2px;
+}
+
+.photo-grid.album-sheet a {
+  display: block;
+  break-inside: avoid;
+  margin-bottom: 2px;
+}
+
+.photo-grid.album-sheet img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.photo-grid.album-sheet a.is-wide {
+  column-span: all;
+  margin: 22px 0;
+}
+
+@media (max-width: 1024px) {
+  .photo-grid.album-index,
+  .photo-grid.album-sheet { column-count: 2; }
+}
+
+@media (max-width: 640px) {
+  .photo-grid.album-index,
+  .photo-grid.album-sheet { column-count: 1; }
+  .album-masthead { padding-top: 40px; }
 }
