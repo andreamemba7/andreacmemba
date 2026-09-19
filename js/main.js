@@ -2,6 +2,15 @@
 // of a project's media (up to 7 more) are swap-in thumbnails on that
 // project's own page only - they're not separate slides here, so adding
 // them doesn't inflate the home slider or the Index grid.
+// Older WebKit builds and some embedded webviews return undefined from
+// play() instead of a Promise, and .catch on undefined throws. Every
+// autoplay/hover-play call goes through here.
+function safePlay(el) {
+  if (!el || typeof el.play !== "function") return;
+  const p = el.play();
+  if (p && typeof p.catch === "function") p.catch(() => {});
+}
+
 function buildSlides(projects) {
   const slides = [];
   projects.forEach((project, projectIndex) => {
@@ -51,7 +60,7 @@ function buildMediaElement(media, altText) {
 // Embeds (YouTube/Vimeo iframes) don't expose a shared play()/pause() API
 // the way <video> does, so play/pause on scroll only applies to <video>.
 function playMedia(el) {
-  if (el.tagName === "VIDEO") el.play().catch(() => {});
+  if (el.tagName === "VIDEO") safePlay(el);
 }
 
 function pauseMedia(el) {
@@ -310,7 +319,7 @@ function buildThumbnailElement(media, altText) {
         cell.appendChild(media);
         // Video outtakes preview muted on hover, same as the Index grid.
         if (media.tagName === "VIDEO") {
-          cell.addEventListener("mouseenter", () => media.play().catch(() => {}));
+          cell.addEventListener("mouseenter", () => safePlay(media));
           cell.addEventListener("mouseleave", () => {
             media.pause();
             media.currentTime = 0.1;
@@ -343,7 +352,7 @@ function buildThumbnailElement(media, altText) {
           // Video thumbnails preview muted on hover instead of sitting
           // fully static like the image ones.
           if (thumb.tagName === "VIDEO") {
-            a.addEventListener("mouseenter", () => thumb.play().catch(() => {}));
+            a.addEventListener("mouseenter", () => safePlay(thumb));
             a.addEventListener("mouseleave", () => {
               thumb.pause();
               thumb.currentTime = 0.1;
@@ -418,12 +427,12 @@ function buildHeroMediaElement(media, altText) {
   // that eats into the video. Clicking the video itself (once playing)
   // pauses it and brings the custom play button back instead.
   playButton.addEventListener("click", () => {
-    video.play().catch(() => {});
+    safePlay(video);
   });
 
   video.addEventListener("click", () => {
     if (video.paused) {
-      video.play().catch(() => {});
+      safePlay(video);
     } else {
       video.pause();
     }
@@ -449,68 +458,7 @@ function buildHeroMediaElement(media, altText) {
   const bg = document.getElementById("infoBg");
   if (!bg || typeof window.loadPhotos !== "function") return;
 
-  // Two modes, one page. No ?album= param means the photography index:
-  // one cover per album, clicking navigates into it. With ?album=<slug>
-  // this is the album interior: that album's photos, laid out as a
-  // contact sheet, clicking opens the flip viewer.
-  const albumSlug = new URLSearchParams(window.location.search).get("album");
-  let photos;
-
-  if (albumSlug && typeof window.loadPhotoAlbums === "function") {
-    const albums = await window.loadPhotoAlbums();
-    const album = albums.find((a) => a.slug === albumSlug);
-    if (!album) {
-      window.location.replace("photography.html");
-      return;
-    }
-    photos = album.photos;
-    document.title = album.title + " - Andrea";
-    document.body.classList.add("page-album");
-
-    const masthead = document.getElementById("albumMasthead");
-    if (masthead) masthead.hidden = false;
-    const titleEl = document.getElementById("albumTitle");
-    if (titleEl) titleEl.textContent = album.title;
-    const subEl = document.getElementById("albumSubtitle");
-    if (subEl) subEl.textContent = album.subtitle;
-    const countEl = document.getElementById("albumCount");
-    if (countEl) {
-      countEl.textContent =
-        album.photos.length + (album.photos.length === 1 ? " frame" : " frames");
-    }
-
-    // A deliberate rhythm rather than a uniform grid: every 7th frame
-    // breaks the columns and runs full width, so scrolling the album has
-    // a pulse instead of a drone.
-    grid.classList.add("album-sheet");
-  } else if (typeof window.loadPhotoAlbums === "function") {
-    const albums = await window.loadPhotoAlbums();
-    grid.classList.add("album-index");
-    albums.forEach((album) => {
-      const a = document.createElement("a");
-      a.className = "album-card";
-      a.href = "photography.html?album=" + encodeURIComponent(album.slug);
-
-      const img = document.createElement("img");
-      img.src = album.cover.url;
-      img.alt = album.title;
-      img.loading = "lazy";
-      a.appendChild(img);
-
-      const meta = document.createElement("span");
-      meta.className = "album-card-meta";
-      meta.innerHTML =
-        '<span class="album-card-title"></span><span class="album-card-count"></span>';
-      meta.querySelector(".album-card-title").textContent = album.title;
-      meta.querySelector(".album-card-count").textContent = album.photos.length;
-      a.appendChild(meta);
-
-      grid.appendChild(a);
-    });
-    return; // index mode has no flip viewer - clicking navigates
-  } else {
-    photos = await window.loadPhotos();
-  }
+  const photos = await window.loadPhotos();
   if (!photos.length) return;
 
   const slots = 10;
@@ -583,7 +531,68 @@ function buildHeroMediaElement(media, altText) {
   const viewer = document.getElementById("photoFlipViewer");
   if (!grid || typeof window.loadPhotos !== "function") return;
 
-  const photos = await window.loadPhotos();
+  // Two modes, one page. No ?album= param means the photography index:
+  // one cover per album, clicking navigates into it. With ?album=<slug>
+  // this is the album interior: that album's photos, laid out as a
+  // contact sheet, clicking opens the flip viewer.
+  const albumSlug = new URLSearchParams(window.location.search).get("album");
+  let photos;
+
+  if (albumSlug && typeof window.loadPhotoAlbums === "function") {
+    const albums = await window.loadPhotoAlbums();
+    const album = albums.find((a) => a.slug === albumSlug);
+    if (!album) {
+      window.location.replace("photography.html");
+      return;
+    }
+    photos = album.photos;
+    document.title = album.title + " - Andrea";
+    document.body.classList.add("page-album");
+
+    const masthead = document.getElementById("albumMasthead");
+    if (masthead) masthead.hidden = false;
+    const titleEl = document.getElementById("albumTitle");
+    if (titleEl) titleEl.textContent = album.title;
+    const subEl = document.getElementById("albumSubtitle");
+    if (subEl) subEl.textContent = album.subtitle;
+    const countEl = document.getElementById("albumCount");
+    if (countEl) {
+      countEl.textContent =
+        album.photos.length + (album.photos.length === 1 ? " frame" : " frames");
+    }
+
+    // A deliberate rhythm rather than a uniform grid: every 7th frame
+    // breaks the columns and runs full width, so scrolling the album has
+    // a pulse instead of a drone.
+    grid.classList.add("album-sheet");
+  } else if (typeof window.loadPhotoAlbums === "function") {
+    const albums = await window.loadPhotoAlbums();
+    grid.classList.add("album-index");
+    albums.forEach((album) => {
+      const a = document.createElement("a");
+      a.className = "album-card";
+      a.href = "photography.html?album=" + encodeURIComponent(album.slug);
+
+      const img = document.createElement("img");
+      img.src = album.cover.url;
+      img.alt = album.title;
+      img.loading = "lazy";
+      a.appendChild(img);
+
+      const meta = document.createElement("span");
+      meta.className = "album-card-meta";
+      meta.innerHTML =
+        '<span class="album-card-title"></span><span class="album-card-count"></span>';
+      meta.querySelector(".album-card-title").textContent = album.title;
+      meta.querySelector(".album-card-count").textContent = album.photos.length;
+      a.appendChild(meta);
+
+      grid.appendChild(a);
+    });
+    return; // index mode has no flip viewer - clicking navigates
+  } else {
+    photos = await window.loadPhotos();
+  }
 
   const flipImage = document.getElementById("flipImage");
   const headingEl = document.getElementById("flipHeading");
