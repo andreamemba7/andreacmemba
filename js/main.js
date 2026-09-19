@@ -608,8 +608,6 @@ function buildHeroMediaElement(media, altText) {
   const cells = photos.map((photo, index) => {
     const a = document.createElement("a");
     a.href = "photo-viewer.html#" + index;
-    // Every 7th frame breaks the column rhythm and runs full width.
-    if (albumSlug && index > 0 && (index + 1) % 7 === 0) a.classList.add("is-wide");
 
     const img = document.createElement("img");
     img.src = photo.url;
@@ -620,6 +618,74 @@ function buildHeroMediaElement(media, altText) {
     grid.appendChild(a);
     return a;
   });
+
+  // ---- Album sheet layout -------------------------------------------
+  // The arrangement is driven by each frame's real aspect ratio, not by
+  // position alone. Column span comes from orientation; row span from
+  // the height that span implies. Both are written as CSS custom
+  // properties, so the grid does the packing and JS only measures.
+  if (albumSlug) {
+    const COLS = () => {
+      const w = window.innerWidth;
+      return w <= 640 ? 4 : w <= 1024 ? 6 : 12;
+    };
+
+    // How wide a frame wants to be, as a fraction of the full row.
+    // Panoramas earn the full width; landscapes half; portraits and
+    // squares a third, so two or three sit side by side.
+    function colSpan(ratio, cols, index) {
+      const full = cols;
+      const half = Math.round(cols / 2);
+      const third = Math.round(cols / 3);
+      if (ratio >= 2.2) return full;                 // panorama
+      // Every 7th frame breaks out full width regardless, so the scroll
+      // has a pulse instead of an even drone.
+      if (index > 0 && (index + 1) % 7 === 0) return full;
+      if (ratio >= 1.25) return half;                // landscape
+      return third;                                  // portrait / square
+    }
+
+    function layoutSheet() {
+      const cols = COLS();
+      const styles = getComputedStyle(grid);
+      const gutter = parseFloat(styles.columnGap) || 14;
+      const rowUnit = parseFloat(styles.gridAutoRows) || 6;
+      const gridWidth = grid.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+      const colWidth = (gridWidth - gutter * (cols - 1)) / cols;
+
+      cells.forEach((a, index) => {
+        const img = a.querySelector("img");
+        if (!img || !img.naturalWidth) return;
+
+        const ratio = img.naturalWidth / img.naturalHeight;
+        const span = colSpan(ratio, cols, index);
+        a.classList.toggle("is-wide", span === cols);
+        a.style.setProperty("--col-span", span);
+
+        const width = colWidth * span + gutter * (span - 1);
+        const height = width / ratio;
+        const rows = Math.max(1, Math.ceil((height + gutter) / (rowUnit + gutter)));
+        a.style.setProperty("--row-span", rows);
+      });
+    }
+
+    // Each image relays out as it arrives, so the sheet assembles
+    // progressively rather than sitting collapsed until the last one.
+    cells.forEach((a) => {
+      const img = a.querySelector("img");
+      if (img.complete && img.naturalWidth) return;
+      img.addEventListener("load", layoutSheet);
+      img.addEventListener("error", () => a.remove());
+    });
+
+    layoutSheet();
+
+    let resizeTimer;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(layoutSheet, 120);
+    });
+  }
 
   if (!hasFlipUI) return;
 
