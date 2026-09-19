@@ -1011,41 +1011,61 @@ body.page-info .site-name {
 
 /* ---------------------------------------------------------------
    Photography albums
+
    Albums are groups of photos sharing a heading. The index shows one
-   cover per album; the interior shows that album's frames as a contact
-   sheet. Both live in photography.html, switched by ?album=<slug>.
+   cover per album; the interior shows that album's frames. Both live in
+   photography.html, switched by ?album=<slug>.
+
+   Both layouts reset `aspect-ratio` explicitly. The base rule
+   `.photo-grid a { aspect-ratio: 2 / 3 }` (and its 7/8 mobile variant)
+   exists for the old uniform cropped grid; left unreset it forces every
+   album frame into a tall box and leaves a black band under anything
+   landscape.
    --------------------------------------------------------------- */
 
-/* Index: covers in a column masonry so portrait and landscape covers
-   both keep their true shape - no cropping anywhere on this page. */
+:root {
+  --album-gutter: 14px;
+  --album-row: 6px;
+}
+
+/* Index: covers in a column masonry. Portrait and landscape covers both
+   keep their true shape - nothing is cropped on this page. */
 .photo-grid.album-index {
   display: block;
   column-count: 3;
-  column-gap: 2px;
-  padding: 2px;
+  column-gap: var(--album-gutter);
+  padding: calc(var(--bar-height) + var(--album-gutter)) var(--album-gutter);
+}
+
+.photo-grid.album-index a,
+.photo-grid.album-sheet a {
+  aspect-ratio: auto;
+  height: auto;
 }
 
 .album-card {
   position: relative;
   display: block;
   break-inside: avoid;
-  margin-bottom: 2px;
+  margin-bottom: var(--album-gutter);
   overflow: hidden;
 }
 
 .album-card img {
   width: 100%;
   height: auto;
+  aspect-ratio: auto;
+  object-fit: contain;
   display: block;
   transition: transform 0.5s cubic-bezier(0.65, 0, 0.35, 1),
               filter 0.5s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-/* Covers sit dimmed until hovered, so the album you're pointing at is the
-   only one fully lit. On touch, everything stays lit. */
+/* Covers sit dimmed until hovered, so the album being pointed at is the
+   only fully lit thing on screen. On touch, everything stays lit. */
 @media (hover: hover) {
-  .album-card img { filter: brightness(0.62); }
-  .album-card:hover img { filter: brightness(1); transform: scale(1.02); }
+  .album-card img { filter: brightness(0.6); }
+  .album-card:hover img { filter: brightness(1); transform: scale(1.015); }
 }
 
 .album-card-meta {
@@ -1068,9 +1088,9 @@ body.page-info .site-name {
 
 .album-card-count { opacity: 0.7; font-variant-numeric: tabular-nums; }
 
-/* Interior: a masthead, then the contact sheet. */
+/* Interior masthead */
 .album-masthead {
-  padding: 64px var(--header-footer-pad) 28px;
+  padding: calc(var(--bar-height) + 48px) var(--album-gutter) 26px;
   color: #fff;
   font-family: 'Untitled Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
@@ -1078,63 +1098,75 @@ body.page-info .site-name {
 .album-masthead h1 {
   margin: 0;
   font-weight: 400;
-  font-size: clamp(28px, 6vw, 64px);
-  line-height: 1.04;
-  letter-spacing: -0.02em;
+  font-size: clamp(30px, 6vw, 68px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
 }
 
 .album-masthead p {
   margin: 10px 0 0;
   font-size: 13px;
   line-height: 18px;
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .album-back {
   display: inline-block;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
   color: #fff;
-  opacity: 0.6;
+  opacity: 0.55;
   text-decoration: none;
   font-size: 13px;
 }
 
 .album-back:hover { opacity: 1; }
 
-/* The sheet itself. Column masonry keeps every frame's own ratio, and
-   .is-wide frames break out of the columns entirely every 7th image so
-   the scroll has a rhythm rather than an even drone. */
+/* The sheet. A 12-column grid on a fine row unit: main.js measures each
+   frame's real aspect ratio and sets both its column span (from
+   orientation) and its row span (from height), so frames pack tightly
+   with one consistent gutter and no black filler anywhere. `dense` lets
+   a narrow frame backfill a hole a wide one left behind. */
 .photo-grid.album-sheet {
-  display: block;
-  column-count: 3;
-  column-gap: 2px;
-  padding: 0 2px 2px;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: var(--album-row);
+  grid-auto-flow: row dense;
+  column-gap: var(--album-gutter);
+  row-gap: var(--album-gutter);
+  padding: 0 var(--album-gutter) calc(var(--bar-height) + var(--album-gutter));
 }
 
 .photo-grid.album-sheet a {
   display: block;
-  break-inside: avoid;
-  margin-bottom: 2px;
+  grid-column: span var(--col-span, 6);
+  /* Until the image loads and JS measures it, a frame occupies one row
+     rather than a guessed height - so nothing jumps by a screenful. */
+  grid-row: span var(--row-span, 1);
+  overflow: hidden;
 }
 
 .photo-grid.album-sheet img {
   width: 100%;
-  height: auto;
+  height: 100%;
+  aspect-ratio: auto;
+  object-fit: cover;
   display: block;
 }
 
+/* Breathing room around a full-width frame, and only there. Spacing as
+   punctuation rather than as a constant. */
 .photo-grid.album-sheet a.is-wide {
-  column-span: all;
-  margin: 22px 0;
+  margin: calc(var(--album-gutter) * 1.5) 0;
 }
 
 @media (max-width: 1024px) {
-  .photo-grid.album-index,
-  .photo-grid.album-sheet { column-count: 2; }
+  .photo-grid.album-index { column-count: 2; }
+  .photo-grid.album-sheet { grid-template-columns: repeat(6, 1fr); }
 }
 
 @media (max-width: 640px) {
-  .photo-grid.album-index,
-  .photo-grid.album-sheet { column-count: 1; }
-  .album-masthead { padding-top: 40px; }
+  :root { --album-gutter: 8px; }
+  .photo-grid.album-index { column-count: 1; }
+  .photo-grid.album-sheet { grid-template-columns: repeat(4, 1fr); }
+  .album-masthead { padding-top: calc(var(--bar-height) + 26px); }
 }
